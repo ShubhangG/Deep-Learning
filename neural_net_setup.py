@@ -62,6 +62,12 @@ class neuron(object):
 		self.bias -= eta*error
 		return
 
+	def update_inputs(self,inp):
+		self.weights = np.empty(inp.shape,dtype=object)
+		for i in range(inp.size):
+			self.weights[i] = weight(inp[i])
+		self.update_neuron()
+
 
 
 ############################
@@ -112,50 +118,62 @@ def backprop(Hlayer,Olayer):
 def objective_function(Olayer):
 	#SOFTMAX
 	U = np.zeros(Olayer.size)
-	Z = sum(np.exp(outpt.state) for outpt in Olayer)
+	mx_st = max(out.state for out in Olayer)
+	Z = sum(np.exp(outpt.state-mx_st) for outpt in Olayer)
 	for i in range(Olayer.size):
-		U[i] = np.exp(Olayer[i].state)/Z
-
+		U[i] = np.exp(Olayer[i].state-mx_st)/Z
+		if(U[i] > 1):
+			U[i]=1
 	return U
+
+def next_inp(inp,Hlayer):
+	for node in Hlayer:
+		node.update_inputs(inp)
 
 def train_net(df):
 
 	y_tr = df['Y_train']
 	del df['Y_train']
 	step_size = 0.01
+
 	#SETUP NETWORK
 	rndm_loc = np.random.randint(0,len(df)) 
 	inp_vec = df.iloc[rndm_loc]
 	Hlayer, Olayer = setup_network(inp_vec)
 
-	#FRONT PROPAGATE
-	frontprop(Hlayer,Olayer)
-	
-	#TAKE OUTPUT AND PASS THROUGH ACTIVATION
-	Uprob = objective_function(Olayer)
+	num_epochs = 1
+	for ep in range(num_epochs):
+		if (ep > 5):
+			step_size  = 0.01
+		if (ep > 10):
+			step_size  = 0.001
+		if (ep > 15):
+			step_size  = 0.0001
+		num_correct = 0
+		for n in range(len(df)):
+			n_rnd = np.random.randint(0,len(df))
+			x_tr = df.iloc[n_rnd]
+			true_idx = y_tr[n_rnd]
+			next_inp(x_tr,Hlayer)
+			frontprop(Hlayer,Olayer)
+			Uprob = objective_function(Olayer)
+			net_outpt = max(Uprob)
+			max_idx = np.argmax(Uprob)
+			if(max_idx == true_idx):
+				num_correct+=1
+			# print("Olayer_states", [net.state for net in Olayer])
+			# print("True Num {}".format(true_idx))
+			# print("Max index {} with prob {}".format(max_idx,net_outpt))
 
-	net_outpt = max(Uprob)
-	max_idx = np.argmax(Uprob)
+			#Run BackProp
+			for i in range(len(Olayer)):
+				if i!=true_idx:
+					Olayer[i].backprop(step_size,-Uprob[i])
+				else:
+					Olayer[i].backprop(step_size,1-Uprob[i])
 
-	#CALCULATE ERROR
-	true_idx = y_tr[rndm_loc]
-	#E = -np.log(net_outpt)
-
-	print("Olayer_states", [net.state for net in Olayer])
-	print("True Num {}".format(true_idx))
-	print("Max index {} with prob {}".format(max_idx,net_outpt))
-
-	#Run BackProp
-	for i in range(len(Olayer)):
-		if i!=true_idx:
-			Olayer[i].backprop(step_size,-Uprob[i])
-		else:
-			Olayer[i].backprop(step_size,1-Uprob[i])
-
-	frontprop(Hlayer,Olayer)
-
-	return Olayer
-
+			frontprop(Hlayer,Olayer)
+		print("For epoch {} the number correct are {}".format(ep,num_correct))
 
 
 def main():
@@ -163,9 +181,11 @@ def main():
 	#y_tr = df_train['Y_train']
 	# del df_train['Y_train']
 	# print(max(df_train.values.flatten()))
-	# assert 1==0
-	Ol = train_net(df_train)
-	print([nu.state for nu in Ol])
+	print len(df)
+	# import cProfile
+	# cProfile.run(train_net(df_train),sort='cumtime')
+	train_net(df_train)
+	#print([nu.state for nu in Ol])
 
 
 
