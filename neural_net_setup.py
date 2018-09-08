@@ -1,6 +1,8 @@
 import numpy as np 
 import pandas as pd 
 import h5py
+import pdb
+import cPickle as pk 
 #import random
 
 class weight(object):
@@ -135,20 +137,21 @@ def train_net(df):
 	y_tr = df['Y_train']
 	del df['Y_train']
 	step_size = 0.01
-
+	
 	#SETUP NETWORK
 	rndm_loc = np.random.randint(0,len(df)) 
 	inp_vec = df.iloc[rndm_loc]
 	Hlayer, Olayer = setup_network(inp_vec)
-
-	num_epochs = 1
+	#pdb.set_trace()
+	num_epochs = 20
+	err = np.zeros(num_epochs)
 	for ep in range(num_epochs):
 		if (ep > 5):
-			step_size  = 0.01
-		if (ep > 10):
 			step_size  = 0.001
-		if (ep > 15):
+		if (ep > 10):
 			step_size  = 0.0001
+		if (ep > 15):
+			step_size  = 0.00001
 		num_correct = 0
 		for n in range(len(df)):
 			n_rnd = np.random.randint(0,len(df))
@@ -173,15 +176,18 @@ def train_net(df):
 					Olayer[i].backprop(step_size,1-Uprob[i])
 
 			frontprop(Hlayer,Olayer)
+		err[ep] = num_correct*1.0/len(df)
 		print("For epoch {} the number correct are {}".format(ep,num_correct))
 
+	pk.dump((Hlayer,Olayer),open("nn_model_SG.py","wb"))
+	np.save("temp_error_file_np",err)
 
 def main():
 	df_test,df_train = read_in_data()
 	#y_tr = df_train['Y_train']
 	# del df_train['Y_train']
 	# print(max(df_train.values.flatten()))
-	print len(df)
+	print(len(df_train))
 	# import cProfile
 	# cProfile.run(train_net(df_train),sort='cumtime')
 	train_net(df_train)
