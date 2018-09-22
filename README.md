@@ -1,2 +1,3 @@
-# Deep-Learning-HW
-My homework solutions for deep learning 
+# Deep-Learning
+
+Platform for practicing and learning DL
